@@ -3,30 +3,38 @@ const qrcode = require('qrcode-terminal');
 const { Client } = require('whatsapp-web.js');
 const TelegramBot = require('node-telegram-bot-api');
 
-const telegramToken = process.env.TELEGRAM_TOKEN;
-const telegramBot = new TelegramBot(telegramToken, { polling: true });
-
+// WhatsApp Setup
 const client = new Client();
 
-client.on('qr', (qr) => {
-    qrcode.generate(qr, { small: true });
+client.on('qr', qr => {
+  qrcode.generate(qr, { small: true });
 });
 
 client.on('ready', () => {
-    console.log('WhatsApp bot is ready!');
+  console.log('✅ WhatsApp Bot is ready!');
 });
 
-telegramBot.on('message', (msg) => {
-    const chatId = msg.chat.id;
-    const text = msg.text;
+// Telegram Setup
+const telegramBot = new TelegramBot(process.env.TELEGRAM_TOKEN, { polling: true });
 
-    if (text) {
-        client.sendMessage(process.env.WHATSAPP_NUMBER, text);
-        telegramBot.sendMessage(chatId, 'Message sent to WhatsApp!');
+telegramBot.onText(/\/send (.+)/, async (msg, match) => {
+  const chatId = msg.chat.id;
+  const message = match[1];
+
+  try {
+    const chats = await client.getChats();
+    const target = chats.find(c => c.name.includes("YourContactName")); // change this
+
+    if (target) {
+      await client.sendMessage(target.id._serialized, message);
+      telegramBot.sendMessage(chatId, "📤 Message sent to WhatsApp.");
+    } else {
+      telegramBot.sendMessage(chatId, "❌ Contact not found.");
     }
+  } catch (err) {
+    console.error(err);
+    telegramBot.sendMessage(chatId, "❌ Error sending message.");
+  }
 });
 
 client.initialize();
-
-
----
